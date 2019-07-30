@@ -6,10 +6,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tangxusc/cavy-sidecar/pkg/command"
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
+	"github.com/tangxusc/cavy-sidecar/pkg/db"
 	"github.com/tangxusc/cavy-sidecar/pkg/event"
 	"github.com/tangxusc/cavy-sidecar/pkg/snapshot"
+	"math/rand"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func NewCmd(ctx context.Context) *cobra.Command {
@@ -17,8 +20,13 @@ func NewCmd(ctx context.Context) *cobra.Command {
 		Use:   "start",
 		Short: "start sidecar",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			rand.Seed(time.Now().Unix())
 			//0,日志
 			config.InitLog()
+			e := db.InitConn(ctx)
+			if e != nil {
+				return e
+			}
 
 			command.Listen(ctx)
 			snapshot.Listen(ctx)

@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"github.com/sirupsen/logrus"
+	"github.com/tangxusc/cavy-sidecar/pkg/aggregate"
 	"sync"
 )
 
@@ -43,4 +44,11 @@ func Listen(ctx context.Context) {
 
 	//8.1 发送时 EventSender chan中,发送到消息中间件  此处可以做成chan模式
 	//9,保存后再eventHandlerCaller chan中发送rpc处理  此处可以做成chan模式
+}
+
+/*
+从map中移除聚合
+*/
+func RemoveAggregateSourcing(agg *aggregate.Sourcing) {
+	aggregateEventCollection.Delete(agg.Key)
 }

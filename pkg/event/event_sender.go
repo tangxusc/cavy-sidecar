@@ -5,6 +5,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+//TODO:收到消息中间件发送的消息后,在本地消息表中记录,并rpc调用业务系统处理消息
+//处理消息后,对消息进行记录
+
 //发送到消息中间件,异步
 func Send(events []*Event) {
 	go func() {
@@ -24,13 +27,18 @@ func Listen(ctx context.Context) {
 				close(eventChan)
 				return
 			case ev := <-eventChan:
-				logrus.Debugf("event 收到event:%v", ev)
+				logrus.Debugf("[event]收到event:%v", ev)
 				handler(ev)
 			}
 		}
 	}()
 }
 
+/*
+发送event到消息中间件
+其中数据来源: eventChan 和 数据库中发送失败的消息
+数据库中发送失败的消息,需要重新发送
+*/
 func handler(event *Event) {
 	//TODO:发送event到消息中间件
 }
