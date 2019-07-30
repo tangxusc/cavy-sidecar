@@ -30,9 +30,11 @@ func BindParameter(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Database, "db-Database", "dbd", "", "数据库实例")
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Username, "db-Username", "dbu", "", "数据库用户名")
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Password, "db-Password", "dbp", "", "数据库密码")
-	cmd.PersistentFlags().IntVarP(&Instance.Db.LifeTime, "db-LifeTime", "dbl", 10, "数据库连接最大连接周期")
+	cmd.PersistentFlags().IntVarP(&Instance.Db.LifeTime, "db-LifeTime", "dbl", 10, "数据库连接最大连接周期(秒)")
 	cmd.PersistentFlags().IntVarP(&Instance.Db.MaxOpen, "db-MaxOpen", "dbo", 5, "数据库最大连接数")
 	cmd.PersistentFlags().IntVarP(&Instance.Db.MaxIdle, "db-MaxIdle", "dbi", 5, "数据库最大等待数量")
+
+	cmd.PersistentFlags().IntVarP(&Instance.Db.LifeTime, "agg-LifeTime", "aggl", 10, "聚合对象存活时间(分钟)")
 	_ = viper.BindPFlag(debugArgName, cmd.PersistentFlags().Lookup(debugArgName))
 	_ = viper.BindPFlag("db-address", cmd.PersistentFlags().Lookup("db-address"))
 	_ = viper.BindPFlag("db-port", cmd.PersistentFlags().Lookup("db-port"))
@@ -42,11 +44,18 @@ func BindParameter(cmd *cobra.Command) {
 	_ = viper.BindPFlag("db-LifeTime", cmd.PersistentFlags().Lookup("db-LifeTime"))
 	_ = viper.BindPFlag("db-MaxOpen", cmd.PersistentFlags().Lookup("db-MaxOpen"))
 	_ = viper.BindPFlag("db-MaxIdle", cmd.PersistentFlags().Lookup("db-MaxIdle"))
+
+	_ = viper.BindPFlag("agg-LifeTime", cmd.PersistentFlags().Lookup("agg-LifeTime"))
+}
+
+type AggregateConfig struct {
+	LifeTime int
 }
 
 type Config struct {
-	Debug bool
-	Db    *DbConfig
+	Debug     bool
+	Db        *DbConfig
+	Aggregate *AggregateConfig
 }
 
 type DbConfig struct {
@@ -62,5 +71,6 @@ type DbConfig struct {
 }
 
 var Instance = &Config{
-	Db: &DbConfig{},
+	Db:        &DbConfig{},
+	Aggregate: &AggregateConfig{},
 }

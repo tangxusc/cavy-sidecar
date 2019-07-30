@@ -3,11 +3,10 @@ package command
 import (
 	"context"
 	"github.com/sirupsen/logrus"
-	"github.com/tangxusc/cavy-sidecar/pkg/aggregate"
 	"sync"
 )
 
-var aggregateEventCollection = sync.Map{}
+var aggregateMap = sync.Map{}
 var CommandChan = make(chan *Command)
 
 func Listen(ctx context.Context) {
@@ -18,7 +17,6 @@ func Listen(ctx context.Context) {
 				return
 			case cmd := <-CommandChan:
 				logrus.Debugf("收到command:%v", cmd)
-				//TODO:同步处理?
 				go handler(ctx, cmd)
 			}
 		}
@@ -49,6 +47,6 @@ func Listen(ctx context.Context) {
 /*
 从map中移除聚合
 */
-func RemoveAggregateSourcing(agg *aggregate.Sourcing) {
-	aggregateEventCollection.Delete(agg.Key)
+func RemoveAggregateSourcing(agg Aggregate) {
+	aggregateMap.Delete(agg.GetKey())
 }

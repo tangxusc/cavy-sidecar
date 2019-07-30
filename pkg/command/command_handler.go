@@ -3,39 +3,45 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/tangxusc/cavy-sidecar/pkg/aggregate"
+	"github.com/tangxusc/cavy-sidecar/pkg/config"
+	"time"
 )
 
 type Command struct {
 	AggregateId   string
 	AggregateType string
-	Data          *interface{}
+	Data          []byte
 }
 
-func handler(ctx context.Context, command *Command) {
-	identKey := getIdentKey(command.AggregateId, command.AggregateType)
-	aggregateSourcing := getAggregateEventSourcing(ctx, identKey)
-	aggregateSourcing.CommandChan <- command
+type Aggregate interface {
+	Listen(ctx context.Context, reset func())
+	SendCommand(command *Command)
+	GetKey() string
 }
 
-func getAggregateEventSourcing(ctx context.Context, key string) *aggregate.Sourcing {
-	//创建,启动,放入aggregateEventCollection
-	agg := instance(ctx, key)
-	actual, loaded := aggregateEventCollection.LoadOrStore(key, agg)
+func handler(ctx context.Context, cmd *Command) {
+	identKey := getIdentKey(cmd.AggregateId, cmd.AggregateType)
+	agg := getAggregate(ctx, identKey)
+	agg.SendCommand(cmd)
+}
+
+func getAggregate(ctx context.Context, key string) Aggregate {
+	ctx, cancel := context.WithCancel(ctx)
+	agg := Instance(ctx, key)
+	actual, loaded := aggregateMap.LoadOrStore(key, agg)
 	if loaded {
-		return actual.(*aggregate.Sourcing)
+		return actual.(Aggregate)
 	}
+	//设置存活时间
+	duration := time.Minute * time.Duration(config.Instance.Aggregate.LifeTime)
+	afterFunc := time.AfterFunc(duration, func() {
+		cancel()
+	})
 	//启动
-	agg.Listen(ctx)
+	agg.Listen(ctx, func() {
+		afterFunc.Reset(duration)
+	})
 	return agg
-}
-
-func instance(ctx context.Context, key string) *aggregate.Sourcing {
-	return &aggregate.Sourcing{
-		Key:         key,
-		CommandChan: make(chan *Command),
-		Ctx:         ctx,
-	}
 }
 
 func getIdentKey(id string, typeString string) string {

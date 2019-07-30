@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
@@ -15,9 +16,10 @@ var dbConn *sqlx.DB
 const DbType = "mysql"
 
 func InitConn(ctx context.Context) error {
-	dsn := fmt.Sprintf("%s:%s@%s(%s:%s)/%s?charset=utf8", config.Instance.Db.Username, config.Instance.Db.Password,
+	dsn := fmt.Sprintf("%s:%s@%s(%s:%s)/%s?charset=utf8&parseTime=true", config.Instance.Db.Username, config.Instance.Db.Password,
 		"tcp", config.Instance.Db.Address, config.Instance.Db.Port, config.Instance.Db.Database)
-	dbConn, err := sqlx.Open(DbType, dsn)
+	var err error
+	dbConn, err = sqlx.Open(DbType, dsn)
 	if err != nil {
 		logrus.Errorf("[db]连接数据库发生错误:%v", err)
 		return err
@@ -29,7 +31,7 @@ func InitConn(ctx context.Context) error {
 }
 
 func QueryRow(sqlString string, data interface{}, param ...interface{}) error {
-	rowx := dbConn.QueryRowx(sqlString, param)
+	rowx := dbConn.QueryRowx(sqlString, param...)
 	err := rowx.StructScan(data)
 	switch {
 	case err == sql.ErrNoRows:
@@ -41,17 +43,21 @@ func QueryRow(sqlString string, data interface{}, param ...interface{}) error {
 	return nil
 }
 
-func Query(sqlString string, result interface{}, param ...interface{}) error {
-	rows, e := dbConn.Queryx(sqlString, param)
+func Query(sqlString string, f func() interface{}, param ...interface{}) error {
+	rows, e := dbConn.Queryx(sqlString, param...)
 	if e != nil {
 		logrus.Errorf("[db]执行sql出现错误,sql:%v,param:%v,错误:%v", sqlString, param, e)
 		return e
 	}
-	e = rows.StructScan(result)
-	if e != nil {
-		logrus.Errorf("[db]执行sql出现错误,sql:%v,param:%v,错误:%v", sqlString, param, e)
+	defer rows.Close()
+	for rows.Next() {
+		e := rows.StructScan(f())
+		if e != nil {
+			logrus.Errorf("[db]执行sql出现错误,sql:%v,param:%v,错误:%v", sqlString, param, e)
+			return e
+		}
 	}
-	return e
+	return nil
 }
 
 func NameExec(sqlString string, data interface{}) (result sql.Result, e error) {

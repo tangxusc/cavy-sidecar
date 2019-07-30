@@ -1,9 +1,8 @@
-package aggregate
+package command
 
 import (
 	"context"
 	"github.com/sirupsen/logrus"
-	"github.com/tangxusc/cavy-sidecar/pkg/command"
 	"github.com/tangxusc/cavy-sidecar/pkg/event"
 	"github.com/tangxusc/cavy-sidecar/pkg/snapshot"
 	"time"
@@ -19,19 +18,35 @@ import (
 type Sourcing struct {
 	Key string
 	//cmd命令
-	CommandChan chan *command.Command
+	CommandChan chan *Command
 	//上下文
 	Ctx context.Context
 	//聚合对象
-	aggregate *interface{}
+	aggregate []byte
 	//最后更新时间
 	lastTime time.Time
 	//eventHandler
 	EventChan chan []*event.Event
 }
 
-func (agg *Sourcing) Listen(ctx context.Context) {
-	defer command.RemoveAggregateSourcing(agg)
+func (agg *Sourcing) GetKey() string {
+	return agg.Key
+}
+
+func (agg *Sourcing) SendCommand(command *Command) {
+	agg.CommandChan <- command
+}
+
+func Instance(ctx context.Context, key string) Aggregate {
+	return &Sourcing{
+		Key:         key,
+		CommandChan: make(chan *Command),
+		Ctx:         ctx,
+	}
+}
+
+func (agg *Sourcing) Listen(ctx context.Context, reset func()) {
+	defer RemoveAggregateSourcing(agg)
 	//handlerCommand
 	go func() {
 		for {
@@ -41,6 +56,7 @@ func (agg *Sourcing) Listen(ctx context.Context) {
 				return
 			case cmd := <-agg.CommandChan:
 				logrus.Debugf("[aggregate]收到command:%v", cmd)
+				reset()
 				agg.handlerCommand(cmd)
 			}
 		}
@@ -63,7 +79,7 @@ func (agg *Sourcing) Listen(ctx context.Context) {
 //1,溯源聚合
 //2,处理command
 //3,接受到event
-func (agg *Sourcing) handlerCommand(cmd *command.Command) {
+func (agg *Sourcing) handlerCommand(cmd *Command) {
 	//1,溯源聚合
 	//1.1如果之前没有初始化聚合lastTime,那整个聚合从未被溯源,则需要找到快照和快照发生后的events进行溯源
 	var events []*event.Event
@@ -74,7 +90,7 @@ func (agg *Sourcing) handlerCommand(cmd *command.Command) {
 			logrus.Errorf("[aggregate]查找快照出现错误,命令:%v,错误:%v", cmd, err)
 			return
 		}
-		events, err = event.FindEventByTime(cmd.AggregateId, cmd.AggregateType, snap.Create)
+		events, err = event.FindEventByTime(cmd.AggregateId, cmd.AggregateType, snap.CreateTime)
 		if err != nil {
 			logrus.Errorf("[aggregate]查找快照出现错误,命令:%v,错误:%v", cmd, err)
 			return
@@ -92,12 +108,12 @@ func (agg *Sourcing) handlerCommand(cmd *command.Command) {
 	//1.2.1溯源后更新时间为当前时间
 	agg.lastTime = time.Now()
 	//1.2.2发送溯源结果至快照存储,由快照存储策略决定是否存储,及如何存储
-	snapshot.SaveAggregate(cmd.AggregateId, cmd.AggregateType, agg.aggregate, events)
+	go snapshot.SaveAggregate(cmd.AggregateId, cmd.AggregateType, agg.aggregate, events)
 
 	//2.处理command
 	//2.1发起rpc,获取events
-	events = make([]*event.Event, 0)
-	events, err = command.CallAggregate(agg.aggregate, cmd)
+	receiveEvents := make([]*event.Event, 0)
+	receiveEvents, err = CallAggregate(agg.aggregate, cmd)
 	if err != nil {
 		logrus.Errorf("[aggregate]调用业务系统处理命令出现错误,聚合:%v,命令:%v,错误:%v", agg.aggregate, cmd, err)
 		//TODO:错误返回处理
@@ -106,19 +122,19 @@ func (agg *Sourcing) handlerCommand(cmd *command.Command) {
 	//两种情况会导致events为0
 	//1,出现错误
 	//2,业务系统中并没有返回events,可能出现了业务不允许的情况
-	if len(events) == 0 {
+	if len(receiveEvents) == 0 {
 		return
 	}
 	//3.1同步保存events到数据库
-	event.Save(events)
+	event.Save(receiveEvents)
 	//3.2发送到消息中间件,异步
-	event.Send(events)
+	event.Send(receiveEvents)
 	//3.3调用事件处理器,进行处理
-	agg.EventChan <- events
+	agg.EventChan <- receiveEvents
 }
 
 //向业务系统发起rpc,开始事件溯源
-func CallEventSourcing(aggregate interface{}, events []*event.Event) *interface{} {
+func CallEventSourcing(aggregate []byte, events []*event.Event) []byte {
 	//TODO:发起rpc,获得结果
 	return nil
 }
