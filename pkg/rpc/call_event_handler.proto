@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+package rpc;
+
+//调用聚合处理事件
+service CallEventHandler {
+    //调用聚合处理事件
+    rpc CallEventHandler (CallEventHandlerRequest) returns (CallEventHandlerResponse) {
+
+    }
+}
+
+message CallEventHandlerRequest {
+    repeated CallEventHandlerRequestEvent events = 1;
+}
+message CallEventHandlerResponse {
+    repeated CallEventHandlerResponseMark data = 1;
+}
+
+//事件的详细信息
+message CallEventHandlerRequestEvent {
+    //事件id
+    string id = 1;
+    string eventType = 2;
+    string aggId = 3;
+    string aggType = 4;
+    google.protobuf.Timestamp create = 5;
+    bytes data = 6;
+}
+message CallEventHandlerResponseMark {
+    //事件id
+    string id = 1;
+    bool success = 2;
+}

@@ -82,11 +82,11 @@ func NameExec(sqlString string, data interface{}) (result sql.Result, e error) {
 	return
 }
 
-func Transaction(f func(tx *sqlx.Tx) error) {
+func Transaction(f func(tx *sqlx.Tx) error) error {
 	tx, e := dbConn.Beginx()
 	if e != nil {
 		logrus.Errorf("[db]开始事务出现错误,错误:%v", e)
-		return
+		return e
 	}
 	e = f(tx)
 	if e != nil {
@@ -94,11 +94,13 @@ func Transaction(f func(tx *sqlx.Tx) error) {
 		e = tx.Rollback()
 		if e != nil {
 			logrus.Errorf("[db]回滚事务出现错误,f:%v,错误:%v", f, e)
+			return e
 		}
-		return
+		return e
 	}
 	e = tx.Commit()
 	if e != nil {
 		logrus.Errorf("[db]提交事务出现错误,f:%v,错误:%v", f, e)
 	}
+	return e
 }

@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"github.com/sirupsen/logrus"
+	"github.com/tangxusc/cavy-sidecar/pkg/db"
 )
 
 //TODO:收到消息中间件发送的消息后,在本地消息表中记录,并rpc调用业务系统处理消息
@@ -41,4 +42,14 @@ func Listen(ctx context.Context) {
 */
 func handler(event *Event) {
 	//TODO:发送event到消息中间件
+}
+
+func LoadUnSendEvent() ([]*Event, error) {
+	events := make([]*Event, 0)
+	e := db.Query(`select * from events where mq_status=0 order by create_time limit 100`, func() interface{} {
+		result := &Event{}
+		events = append(events, result)
+		return result
+	})
+	return events, e
 }

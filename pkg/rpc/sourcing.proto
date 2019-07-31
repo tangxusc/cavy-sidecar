@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+package rpc;
+
+//事件溯源,得到聚合
+service Sourcing {
+    //发起事件溯源,得到聚合对象,用来作为 命令处理的聚合
+    rpc Sourcing (SourcingRequest) returns (SourcingResponse) {
+
+    }
+}
+//溯源请求
+message SourcingRequest {
+    //聚合id
+    string aggregateId = 1;
+    //聚合类型
+    string aggregateType = 2;
+    //聚合
+    bytes aggregate = 3;
+    //需要应用的事件
+    repeated SourcingRequestEvent events = 4;
+}
+///溯源返回
+message SourcingResponse {
+    //聚合
+    google.protobuf.Any aggregate = 1;
+}
+//事件的详细信息
+message SourcingRequestEvent {
+    //事件id
+    string Id = 1;
+    //事件类型
+    string eventType = 2;
+    //事件创建时间
+    google.protobuf.Timestamp Create = 3;
+    //事件内容
+    bytes Data = 4;
+}
+enum Status {
+    Saved = 0;
+    Sent = 1;
+    SendError = 2;
+}

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+package rpc;
+
+//调用聚合处理事件
+service CallAggregate {
+    //调用聚合处理事件
+    rpc CallAggregate (CallAggregateRequest) returns (CallAggregateResponse) {
+
+    }
+}
+
+message CallAggregateRequest {
+    //聚合id
+    string aggregateId = 1;
+    //聚合类型
+    string aggregateType = 2;
+    //聚合
+    bytes aggregate = 3;
+    //需要应用的命令
+    Command command = 4;
+}
+///返回
+message CallAggregateResponse {
+    //事件
+    repeated CallAggregateResponseEvent events = 1;
+}
+
+//事件的详细信息
+message CallAggregateResponseEvent {
+    //事件id
+    string Id = 1;
+    //事件内容
+    google.protobuf.Any Data = 4;
+}
+
+//命令
+message Command {
+    //命令类型
+    string cmdType = 2;
+    //事件内容
+    bytes Data = 4;
+}

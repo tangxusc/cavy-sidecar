@@ -8,6 +8,7 @@ import (
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
 	"github.com/tangxusc/cavy-sidecar/pkg/event"
+	"github.com/tangxusc/cavy-sidecar/pkg/rpc"
 	"github.com/tangxusc/cavy-sidecar/pkg/snapshot"
 	"math/rand"
 	"os"
@@ -27,10 +28,14 @@ func NewCmd(ctx context.Context) *cobra.Command {
 			if e != nil {
 				return e
 			}
-
+			e = rpc.Start(ctx)
+			if e != nil {
+				return e
+			}
 			command.Listen(ctx)
 			snapshot.Listen(ctx)
 			event.Listen(ctx)
+			command.StartEventRecover(ctx)
 
 			return nil
 		},

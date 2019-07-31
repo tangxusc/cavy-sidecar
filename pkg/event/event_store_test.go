@@ -17,18 +17,20 @@ func TestSave(t *testing.T) {
 	events := make([]*Event, 0, 2)
 	create := time.Now()
 	events = append(events, &Event{
-		Id:      "1",
-		AggId:   "1",
-		AggType: "Test",
-		Create:  create,
-		Data:    aggregate,
+		Id:        "1",
+		AggId:     "1",
+		AggType:   "Test",
+		Create:    create,
+		Data:      aggregate,
+		EventType: "t1",
 	})
 	events = append(events, &Event{
-		Id:      "2",
-		AggId:   "1",
-		AggType: "Test",
-		Create:  create,
-		Data:    aggregate,
+		Id:        "2",
+		AggId:     "1",
+		AggType:   "Test",
+		Create:    create,
+		Data:      aggregate,
+		EventType: "t2",
 	})
 	Save(events)
 }

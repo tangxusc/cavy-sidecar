@@ -3,27 +3,37 @@ package event
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
+	"strings"
 	"time"
 )
 
-type Status int
+type HandlerStatus int
 
 const (
-	//已保存
-	Saved Status = iota
+	//未处理
+	Untreated HandlerStatus = iota
+	//已处理
+	Processed
+)
+
+type MqStatus int
+
+const (
+	//未发送
+	MqNotSend MqStatus = iota
 	//已发送
-	Sent
-	//发送错误
-	SendError
+	MqSent
 )
 
 type Event struct {
-	Id      string    `db:"id"`
-	AggId   string    `db:"agg_id"`
-	AggType string    `db:"agg_type"`
-	Create  time.Time `db:"create_time"`
-	Data    []byte    `db:"data"`
-	Status  Status    `db:"status"`
+	Id            string        `db:"id"`
+	EventType     string        `db:"event_type"`
+	AggId         string        `db:"agg_id"`
+	AggType       string        `db:"agg_type"`
+	Create        time.Time     `db:"create_time"`
+	Data          []byte        `db:"data"`
+	HandlerStatus HandlerStatus `db:"handler_status"`
+	MqStatus      MqStatus      `db:"mq_status"`
 }
 
 /**
@@ -47,15 +57,26 @@ func FindEventByTime(id string, AggregateType string, t time.Time) ([]*Event, er
 event必须在同一个事务中成功或者失败
 保存event,要在同一个事务中,保存后状态是[未发送到消息中间件]
 */
-func Save(events []*Event) {
-	db.Transaction(func(tx *sqlx.Tx) error {
+func Save(events []*Event) error {
+	return db.Transaction(func(tx *sqlx.Tx) error {
 		for _, value := range events {
-			value.Status = Saved
-			_, e := tx.NamedExec("INSERT INTO events(id,agg_type,agg_id,create_time,data,status) VALUES(:id,:agg_type,:agg_id,:create_time,:data,:status)", value)
+			value.HandlerStatus = Untreated
+			value.MqStatus = MqNotSend
+			_, e := tx.NamedExec(`INSERT INTO events(id,event_type,agg_type,agg_id,create_time,data,handler_status,mq_status)
+ VALUES(:id,:event_type,:agg_type,:agg_id,:create_time,:data,:handler_status,:mq_status)`, value)
 			if e != nil {
 				return e
 			}
 		}
 		return nil
+	})
+}
+
+func UpdateEventHandlerStatus(ids []string) error {
+	return db.Transaction(func(tx *sqlx.Tx) error {
+		join := strings.Join(ids, "','")
+		join = "'" + join + "'"
+		_, e := tx.Exec("update events set handler_status=1 where id in (?)", join)
+		return e
 	})
 }

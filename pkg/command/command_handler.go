@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
+	"github.com/tangxusc/cavy-sidecar/pkg/event"
 	"time"
 )
 
 type Command struct {
+	CmdType       string
 	AggregateId   string
 	AggregateType string
 	Data          []byte
@@ -17,6 +19,7 @@ type Aggregate interface {
 	Listen(ctx context.Context, reset func())
 	SendCommand(command *Command)
 	GetKey() string
+	SendEvent(event *event.Event)
 }
 
 func handler(ctx context.Context, cmd *Command) {
