@@ -25,8 +25,7 @@ func BindParameter(cmd *cobra.Command) {
 	viper.AutomaticEnv()
 
 	cmd.PersistentFlags().BoolVarP(&Instance.Debug, debugArgName, "v", false, "debug mod")
-	cmd.PersistentFlags().StringVarP(&Instance.Db.Address, "db-address", "dba", "", "数据库连接地址")
-	cmd.PersistentFlags().StringVarP(&Instance.Db.Port, "db-port", "dbp", "3306", "数据库端口")
+	cmd.PersistentFlags().StringVarP(&Instance.Db.Address, "db-address", "dba", "localhost", "数据库连接地址")
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Port, "db-port", "dbp", "3306", "数据库端口")
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Database, "db-Database", "dbd", "", "数据库实例")
 	cmd.PersistentFlags().StringVarP(&Instance.Db.Username, "db-Username", "dbu", "", "数据库用户名")
@@ -35,10 +34,10 @@ func BindParameter(cmd *cobra.Command) {
 	cmd.PersistentFlags().IntVarP(&Instance.Db.MaxOpen, "db-MaxOpen", "dbo", 5, "数据库最大连接数")
 	cmd.PersistentFlags().IntVarP(&Instance.Db.MaxIdle, "db-MaxIdle", "dbi", 5, "数据库最大等待数量")
 
-	cmd.PersistentFlags().IntVarP(&Instance.Db.LifeTime, "agg-LifeTime", "aggl", 10, "聚合对象存活时间(分钟)")
-	cmd.PersistentFlags().IntVarP(&Instance.Db.LifeTime, "agg-RecoverTime", "aggr", 5, "事件故障恢复时间")
+	cmd.PersistentFlags().IntVarP(&Instance.Aggregate.LifeTime, "agg-LifeTime", "aggl", 10, "聚合对象存活时间(分钟)")
+	cmd.PersistentFlags().IntVarP(&Instance.Aggregate.RecoverTime, "agg-RecoverTime", "aggr", 5, "事件故障恢复时间")
 
-	cmd.PersistentFlags().StringVarP(&Instance.Rpc.Port, "rpc-port", "rpcp", "9999", "rpc端口")
+	cmd.PersistentFlags().StringVarP(&Instance.Rpc.Port, "rpc-Port", "rpcp", "9999", "rpc端口")
 	_ = viper.BindPFlag(debugArgName, cmd.PersistentFlags().Lookup(debugArgName))
 	_ = viper.BindPFlag("db-address", cmd.PersistentFlags().Lookup("db-address"))
 	_ = viper.BindPFlag("db-port", cmd.PersistentFlags().Lookup("db-port"))
@@ -52,7 +51,7 @@ func BindParameter(cmd *cobra.Command) {
 	_ = viper.BindPFlag("agg-LifeTime", cmd.PersistentFlags().Lookup("agg-LifeTime"))
 	_ = viper.BindPFlag("agg-RecoverTime", cmd.PersistentFlags().Lookup("agg-RecoverTime"))
 
-	_ = viper.BindPFlag("rpc-port", cmd.PersistentFlags().Lookup("rpc-port"))
+	_ = viper.BindPFlag("rpc-Port", cmd.PersistentFlags().Lookup("rpc-Port"))
 }
 
 type AggregateConfig struct {

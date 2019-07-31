@@ -4,7 +4,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
 	"github.com/tangxusc/cavy-sidecar/pkg/model"
-	"strings"
 	"time"
 )
 
@@ -45,10 +44,16 @@ func Save(events []*model.Event) error {
 }
 
 func UpdateEventHandlerStatus(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	return db.Transaction(func(tx *sqlx.Tx) error {
-		join := strings.Join(ids, "','")
-		join = "'" + join + "'"
-		_, e := tx.Exec("update events set handler_status=1 where id in (?)", join)
-		return e
+		query, args, err := sqlx.In(`update events set handler_status=1 where id in (?)`, ids)
+		if err != nil {
+			return err
+		}
+		query = tx.Rebind(query)
+		_, err = tx.Exec(query, args...)
+		return err
 	})
 }
