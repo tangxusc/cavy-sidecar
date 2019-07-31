@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"testing"
 	"time"
 )
@@ -14,9 +15,9 @@ var aggregate = []byte{'t', 'e', 's', 't'}
 func TestSave(t *testing.T) {
 	initTestDb()
 
-	events := make([]*Event, 0, 2)
+	events := make([]*model.Event, 0, 2)
 	create := time.Now()
-	events = append(events, &Event{
+	events = append(events, &model.Event{
 		Id:        "1",
 		AggId:     "1",
 		AggType:   "Test",
@@ -24,7 +25,7 @@ func TestSave(t *testing.T) {
 		Data:      aggregate,
 		EventType: "t1",
 	})
-	events = append(events, &Event{
+	events = append(events, &model.Event{
 		Id:        "2",
 		AggId:     "1",
 		AggType:   "Test",

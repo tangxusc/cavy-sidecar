@@ -3,11 +3,12 @@ package command
 import (
 	"context"
 	"github.com/sirupsen/logrus"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"sync"
 )
 
 var aggregateMap = sync.Map{}
-var CommandChan = make(chan *Command)
+var CommandChan = make(chan *model.Command)
 
 func Listen(ctx context.Context) {
 	go func() {
@@ -47,6 +48,6 @@ func Listen(ctx context.Context) {
 /*
 从map中移除聚合
 */
-func RemoveAggregateSourcing(agg Aggregate) {
+func RemoveAggregateSourcing(agg model.Aggregate) {
 	aggregateMap.Delete(agg.GetKey())
 }

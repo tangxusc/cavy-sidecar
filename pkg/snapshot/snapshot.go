@@ -5,30 +5,22 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
 	"github.com/tangxusc/cavy-sidecar/pkg/event"
-	"time"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 )
-
-type Aggregate struct {
-	Id         string    `db:"id"`
-	AggType    string    `db:"agg_type"`
-	AggId      string    `db:"agg_id"`
-	CreateTime time.Time `db:"create_time"`
-	Data       []byte    `db:"data"`
-}
 
 /*
 查找并返回最后一个快照,按照创建事件倒序
 */
-func FindLastSnapBy(id, aggregateType string) (agg *Aggregate, err error) {
-	agg = &Aggregate{}
+func FindLastSnapBy(id, aggregateType string) (agg *model.AggregateSnapshot, err error) {
+	agg = &model.AggregateSnapshot{}
 	err = db.QueryRow(`select * from snapshot where agg_id=? and agg_type=? order by create_time desc`, agg, id, aggregateType)
 	return
 }
 
-var aggChan chan *Aggregate
+var aggChan chan *model.AggregateSnapshot
 
 func Listen(ctx context.Context) {
-	aggChan = make(chan *Aggregate)
+	aggChan = make(chan *model.AggregateSnapshot)
 	go func() {
 		for {
 			select {
@@ -47,7 +39,7 @@ func Listen(ctx context.Context) {
 存储快照
 存储出现错误,可以忽略;
 */
-func SaveSnapshot(agg *Aggregate) {
+func SaveSnapshot(agg *model.AggregateSnapshot) {
 	_, e := db.NameExec(`INSERT INTO snapshot(id,agg_type,agg_id,create_time,data) VALUES(:id,:agg_type,:agg_id,:create_time,:data)`, agg)
 	if e != nil {
 		logrus.Errorf("[snapshot]存储快照出现错误,聚合:%v,错误:%v", agg, e)
@@ -58,7 +50,7 @@ func SaveSnapshot(agg *Aggregate) {
 
 func SaveAggregate(Id string, aggType string, agg []byte, events []*event.Event) {
 	if DefaultStrategy.Allow(Id, aggType, agg, events) {
-		aggChan <- &Aggregate{
+		aggChan <- &model.AggregateSnapshot{
 			AggType: aggType,
 			AggId:   Id,
 			Data:    agg,

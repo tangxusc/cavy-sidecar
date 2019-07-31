@@ -4,10 +4,11 @@ import (
 	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"github.com/tangxusc/cavy-sidecar/pkg/rpc"
 )
 
-func CallHandler(ctx context.Context, events []*Event) {
+func CallHandler(ctx context.Context, events []*model.Event) {
 	marks, e := rpc.CallEventHandler(ctx, events)
 	if e != nil {
 		logrus.Errorf("[event]调用事件处理器失败,事件不做更新.")
@@ -29,10 +30,10 @@ func CallHandler(ctx context.Context, events []*Event) {
 /*
 找到未处理的事件
 */
-func LoadUnHandEvent() ([]*Event, error) {
-	events := make([]*Event, 0)
+func LoadUnHandEvent() ([]*model.Event, error) {
+	events := make([]*model.Event, 0)
 	e := db.Query(`select * from events where handler_status=0 order by create_time limit 100`, func() interface{} {
-		result := &Event{}
+		result := &model.Event{}
 		events = append(events, result)
 		return result
 	})

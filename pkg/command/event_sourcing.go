@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/tangxusc/cavy-sidecar/pkg/event"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"github.com/tangxusc/cavy-sidecar/pkg/rpc"
 	"github.com/tangxusc/cavy-sidecar/pkg/snapshot"
 	"time"
@@ -16,23 +17,11 @@ import (
 2,处理command
 3,接受到event
 */
-type Sourcing struct {
-	Key string
-	//cmd命令
-	CommandChan chan *Command
-	//上下文
-	Ctx context.Context
-	//聚合对象
-	aggregate []byte
-	//最后更新时间
-	lastTime time.Time
-	//eventHandler
-	EventChan chan []*event.Event
-}
+type Sourcing model.Sourcing
 
-func (agg *Sourcing) SendEvent(e *event.Event) {
+func (agg *Sourcing) SendEvent(e *model.Event) {
 	go func() {
-		agg.EventChan <- []*event.Event{e}
+		agg.EventChan <- []*model.Event{e}
 	}()
 }
 
@@ -40,16 +29,16 @@ func (agg *Sourcing) GetKey() string {
 	return agg.Key
 }
 
-func (agg *Sourcing) SendCommand(command *Command) {
+func (agg *Sourcing) SendCommand(command *model.Command) {
 	agg.CommandChan <- command
 }
 
-func Instance(ctx context.Context, key string) Aggregate {
+func Instance(ctx context.Context, key string) *Sourcing {
 	return &Sourcing{
 		Key:         key,
-		CommandChan: make(chan *Command),
+		CommandChan: make(chan *model.Command),
 		Ctx:         ctx,
-		EventChan:   make(chan []*event.Event),
+		EventChan:   make(chan []*model.Event),
 	}
 }
 
@@ -87,12 +76,12 @@ func (agg *Sourcing) Listen(ctx context.Context, reset func()) {
 //1,溯源聚合
 //2,处理command
 //3,接受到event
-func (agg *Sourcing) handlerCommand(ctx context.Context, cmd *Command) {
+func (agg *Sourcing) handlerCommand(ctx context.Context, cmd *model.Command) {
 	//1,溯源聚合
 	//1.1如果之前没有初始化聚合lastTime,那整个聚合从未被溯源,则需要找到快照和快照发生后的events进行溯源
-	var events []*event.Event
+	var events []*model.Event
 	var err error
-	if agg.lastTime.IsZero() {
+	if agg.LastTime.IsZero() {
 		snap, err := snapshot.FindLastSnapBy(cmd.AggregateId, cmd.AggregateType)
 		if err != nil {
 			logrus.Errorf("[aggregate]查找快照出现错误,命令:%v,错误:%v", cmd, err)
@@ -103,31 +92,31 @@ func (agg *Sourcing) handlerCommand(ctx context.Context, cmd *Command) {
 			logrus.Errorf("[aggregate]查找快照出现错误,命令:%v,错误:%v", cmd, err)
 			return
 		}
-		agg.aggregate = snap.Data
+		agg.Aggregate = snap.Data
 	} else {
-		events, err = event.FindEventByTime(cmd.AggregateId, cmd.AggregateType, agg.lastTime)
+		events, err = event.FindEventByTime(cmd.AggregateId, cmd.AggregateType, agg.LastTime)
 		if err != nil {
 			logrus.Errorf("[aggregate]查找快照出现错误,命令:%v,错误:%v", cmd, err)
 			return
 		}
 	}
 	//1.2远程调用进行溯源
-	agg.aggregate, err = CallEventSourcing(ctx, cmd.AggregateId, cmd.AggregateType, agg.aggregate, events)
+	agg.Aggregate, err = CallEventSourcing(ctx, cmd.AggregateId, cmd.AggregateType, agg.Aggregate, events)
 	if err != nil {
 		//TODO:错误返回处理
 		return
 	}
 	//1.2.1溯源后更新时间为当前时间
-	agg.lastTime = time.Now()
+	agg.LastTime = time.Now()
 	//1.2.2发送溯源结果至快照存储,由快照存储策略决定是否存储,及如何存储
-	go snapshot.SaveAggregate(cmd.AggregateId, cmd.AggregateType, agg.aggregate, events)
+	go snapshot.SaveAggregate(cmd.AggregateId, cmd.AggregateType, agg.Aggregate, events)
 
 	//2.处理command
 	//2.1发起rpc,获取events
-	receiveEvents := make([]*event.Event, 0)
-	receiveEvents, err = CallAggregate(ctx, cmd.AggregateId, cmd.AggregateType, agg.aggregate, cmd)
+	receiveEvents := make([]*model.Event, 0)
+	receiveEvents, err = CallAggregate(ctx, cmd.AggregateId, cmd.AggregateType, agg.Aggregate, cmd)
 	if err != nil {
-		logrus.Errorf("[aggregate]调用业务系统处理命令出现错误,聚合:%v,命令:%v,错误:%v", agg.aggregate, cmd, err)
+		logrus.Errorf("[aggregate]调用业务系统处理命令出现错误,聚合:%v,命令:%v,错误:%v", agg.Aggregate, cmd, err)
 		//TODO:错误返回处理
 		return
 	}
@@ -150,7 +139,7 @@ func (agg *Sourcing) handlerCommand(ctx context.Context, cmd *Command) {
 }
 
 //向业务系统发起rpc,开始事件溯源
-func CallEventSourcing(ctx context.Context, id string, aggType string, aggregate []byte, events []*event.Event) ([]byte, error) {
+func CallEventSourcing(ctx context.Context, id string, aggType string, aggregate []byte, events []*model.Event) ([]byte, error) {
 	bytes, e := rpc.Sourcing(ctx, id, aggType, aggregate, events)
 	if e != nil {
 		return nil, e

@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
-	"github.com/tangxusc/cavy-sidecar/pkg/command"
 	"github.com/tangxusc/cavy-sidecar/pkg/config"
-	"github.com/tangxusc/cavy-sidecar/pkg/event"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"google.golang.org/grpc"
 )
 
@@ -43,7 +42,7 @@ func Start(ctx context.Context) error {
 	return e
 }
 
-func Sourcing(ctx context.Context, id string, aggType string, agg []byte, events []*event.Event) ([]byte, error) {
+func Sourcing(ctx context.Context, id string, aggType string, agg []byte, events []*model.Event) ([]byte, error) {
 	sourceEvents := make([]*SourcingRequestEvent, len(events))
 
 	for key, value := range events {
@@ -72,7 +71,7 @@ func Sourcing(ctx context.Context, id string, aggType string, agg []byte, events
 	return response.Aggregate.Value, nil
 }
 
-func CallAggregate(ctx context.Context, aggId string, aggType string, agg []byte, cmd *command.Command) ([]*CallAggregateResponseEvent, error) {
+func CallAggregate(ctx context.Context, aggId string, aggType string, agg []byte, cmd *model.Command) ([]*CallAggregateResponseEvent, error) {
 	callCmd := &Command{
 		CmdType: cmd.CmdType,
 		Data:    cmd.Data,
@@ -90,7 +89,7 @@ func CallAggregate(ctx context.Context, aggId string, aggType string, agg []byte
 	return response.Events, nil
 }
 
-func CallEventHandler(ctx context.Context, events []*event.Event) ([]*CallEventHandlerResponseMark, error) {
+func CallEventHandler(ctx context.Context, events []*model.Event) ([]*CallEventHandlerResponseMark, error) {
 	requestEvents := make([]*CallEventHandlerRequestEvent, len(events))
 
 	for key, value := range events {

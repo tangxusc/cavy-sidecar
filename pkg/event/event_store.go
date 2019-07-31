@@ -3,46 +3,18 @@ package event
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tangxusc/cavy-sidecar/pkg/db"
+	"github.com/tangxusc/cavy-sidecar/pkg/model"
 	"strings"
 	"time"
 )
 
-type HandlerStatus int
-
-const (
-	//未处理
-	Untreated HandlerStatus = iota
-	//已处理
-	Processed
-)
-
-type MqStatus int
-
-const (
-	//未发送
-	MqNotSend MqStatus = iota
-	//已发送
-	MqSent
-)
-
-type Event struct {
-	Id            string        `db:"id"`
-	EventType     string        `db:"event_type"`
-	AggId         string        `db:"agg_id"`
-	AggType       string        `db:"agg_type"`
-	Create        time.Time     `db:"create_time"`
-	Data          []byte        `db:"data"`
-	HandlerStatus HandlerStatus `db:"handler_status"`
-	MqStatus      MqStatus      `db:"mq_status"`
-}
-
 /**
 查找时间t之后的事件
 */
-func FindEventByTime(id string, AggregateType string, t time.Time) ([]*Event, error) {
-	events := make([]*Event, 0)
+func FindEventByTime(id string, AggregateType string, t time.Time) ([]*model.Event, error) {
+	events := make([]*model.Event, 0)
 	e := db.Query("select * from events where agg_id=? and agg_type=? and create_time> ?", func() interface{} {
-		result := &Event{}
+		result := &model.Event{}
 		events = append(events, result)
 		return result
 	}, id, AggregateType, t)
@@ -57,11 +29,11 @@ func FindEventByTime(id string, AggregateType string, t time.Time) ([]*Event, er
 event必须在同一个事务中成功或者失败
 保存event,要在同一个事务中,保存后状态是[未发送到消息中间件]
 */
-func Save(events []*Event) error {
+func Save(events []*model.Event) error {
 	return db.Transaction(func(tx *sqlx.Tx) error {
 		for _, value := range events {
-			value.HandlerStatus = Untreated
-			value.MqStatus = MqNotSend
+			value.HandlerStatus = model.Untreated
+			value.MqStatus = model.MqNotSend
 			_, e := tx.NamedExec(`INSERT INTO events(id,event_type,agg_type,agg_id,create_time,data,handler_status,mq_status)
  VALUES(:id,:event_type,:agg_type,:agg_id,:create_time,:data,:handler_status,:mq_status)`, value)
 			if e != nil {
